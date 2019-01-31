@@ -1,12 +1,10 @@
 package org.willkomm;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.*;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CompletableFutureTest {
     public class Fubar extends RuntimeException {}
@@ -57,7 +55,7 @@ public class CompletableFutureTest {
         CompletableFuture<String> f = CompletableFuture.supplyAsync(
                 () -> goOrFail(true)
         ).thenApplyAsync(
-                (result) -> result
+                result -> result
         );
 
         assertEquals("Let's go!", f.join());
