@@ -41,44 +41,57 @@ public class CompletionStageTest {
     }
 
     @Test
-    public void intermediateStageWaitsForProceedingStage() {
-        CompletableFuture.supplyAsync(() -> {
-            System.out.println("stage1");
-            return "stage1";
-        }).thenApplyAsync(s -> {
-            System.out.println("stage2");
-            return "stage2";
-        });
+    public void stage312() throws InterruptedException {
+        CompletionStage<Integer> stage3 = createCompletionStage(3);
+        CompletionStage<Integer> stage1 = createCompletionStage(1);
+        CompletionStage<Integer> stage2 = createCompletionStage(2);
+
+        // Without this pause, the CompletableFuture created async stages will execute in different orders depending upon how many threads are used.
+        Thread.sleep(1);
+
+        CompletionStage<Integer> chain = stage1
+                .thenCompose(x -> stage2)
+                .thenCompose(x -> stage3);
+
+        assertEquals(3, queue.remove().intValue());
+        assertEquals(1, queue.remove().intValue());
+        assertEquals(2, queue.remove().intValue());
+
+        assertEquals(3, chain.toCompletableFuture().join().intValue());
     }
 
     @Test
-    public void exploration() throws InterruptedException {
-        CompletionStage<Void> s2 = createCompletionStage(2);
-//        Thread.sleep(1);
+    public void stage213() {
+        CompletionStage<Integer> s2 = createCompletionStage(2);
 
-        createCompletionStage(1)
+        CompletionStage<Integer> chain = createCompletionStage(1)
                 .thenCompose(s -> s2)
-                .thenCompose(s -> createCompletionStage(3))
-                .toCompletableFuture()
-                .join();
+                .thenCompose(s -> createCompletionStage(3));
 
-        assertEquals("[2, 1, 3]", queue.toString());
+        // If this is commented out, the final assertion below may fail as it's stage hasn't executed yet.
+        assertEquals(3, chain.toCompletableFuture().join().intValue());
+
+        assertEquals(2, queue.remove().intValue());
+        assertEquals(1, queue.remove().intValue());
+        assertEquals(3, queue.remove().intValue());
     }
 
     @Test
-    public void completableFutureReturnedFromMethodDoesNotStartUntilAfterPreviousStageFinishesWhenComposed() {
-        createCompletionStage(1)
+    public void stage123() {
+        CompletionStage<Integer> chain = createCompletionStage(1)
                 .thenCompose(s -> createCompletionStage(2))
-                .toCompletableFuture()
-                .join();
+                .thenCompose(s -> createCompletionStage(3));
 
-        assertEquals("[1, 2]", queue.toString());
+        // If this is commented out, the final assertion below may fail as it's stage hasn't executed yet.
+        assertEquals(3, chain.toCompletableFuture().join().intValue());
+
+        assertEquals(1, queue.remove().intValue());
+        assertEquals(2, queue.remove().intValue());
+        assertEquals(3, queue.remove().intValue());
     }
 
     @Test
-    public void ex3() {
-        logger.fine("");
-
+    public void stage123_given2IsInline() {
         createCompletionStage(1)
                 .thenApplyAsync(s -> {
                     logger.fine("queue.add(2)");
@@ -89,16 +102,18 @@ public class CompletionStageTest {
                 .toCompletableFuture()
                 .join();
 
-        assertEquals("[1, 2, 3]", queue.toString());
+        assertEquals(1, queue.remove().intValue());
+        assertEquals(2, queue.remove().intValue());
+        assertEquals(3, queue.remove().intValue());
     }
 
-    private CompletionStage<Void> createCompletionStage(int currentStage) {
+    private CompletionStage<Integer> createCompletionStage(int currentStage) {
         logger.fine("createCompletionStage(" + currentStage +")");
 
         return CompletableFuture.supplyAsync(() -> {
             logger.fine("queue.add(" + currentStage + ")");
             queue.add(currentStage);
-            return null;
+            return currentStage;
         });
     }
 }
